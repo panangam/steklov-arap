@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/arap"]
+
+[project]
+name = "arap-panangam"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "cholespy>=2.2.0",
+    "libigl>=2.6.2",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.3",
+    "polyscope>=2.6.1",
+    "pytest>=9.0.2",
+    "robust-laplacian>=1.1.0",
+    "torch>=2.10.0",
+    "viser>=1.0.24",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu130" }
