@@ -6,7 +6,7 @@ import k3d
 import cholespy
 import scipy
 
-from steklov_arap.arap import *
+from steklov_arap import *
 
 #!%load_ext autoreload  
 #!%autoreload 3  

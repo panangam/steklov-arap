@@ -1,4 +1,3 @@
-import sys
-import runpy
+from .arap_ui import main
 
-runpy.run_module("arap.arap_ui", run_name="__main__", alter_sys=True)
+main()

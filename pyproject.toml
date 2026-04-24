@@ -3,10 +3,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/arap"]
+packages = ["src/steklov_arap"]
 
 [project]
-name = "arap-panangam"
+name = "steklov-arap"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -17,10 +17,15 @@ dependencies = [
     "matplotlib>=3.10.8",
     "numpy>=2.4.3",
     "polyscope>=2.6.1",
-    "pytest>=9.0.2",
     "robust-laplacian>=1.1.0",
     "torch>=2.10.0",
     "viser>=1.0.24",
+]
+
+[dependency-groups]
+dev = [
+    "k3d>=2.17.0",
+    "pytest>=9.0.2",
 ]
 
 [[tool.uv.index]]

@@ -12,8 +12,8 @@ import polyscope.imgui as psim
 import igl
 import torch
 
-from arap import ARAPManager
-from arap.steklov import ARAPManagerSteklov
+from .arap import ARAPManager
+from .steklov import ARAPManagerSteklov
 
 
 MESH_NAME = "mesh"
