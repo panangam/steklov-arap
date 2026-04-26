@@ -17,7 +17,8 @@ dependencies = [
     "matplotlib>=3.10.8",
     "numpy>=2.4.3",
     "polyscope>=2.6.1",
-    "robust-laplacian>=1.1.0",
+    "robust-laplacian>=1.0.0",
+    "steklovnet",
     "torch>=2.10.0",
     "viser>=1.0.24",
 ]
@@ -37,3 +38,4 @@ explicit = true
 
 [tool.uv.sources]
 torch = { index = "pytorch-cu130" }
+steklovnet = { git = "https://github.com/starboi-63/steklovnet.git", rev = "installable" }
