@@ -85,6 +85,25 @@ def load_cached_steklov_dtn(V, F, interior=True):
     return cached
 
 
+def load_cached_dtn_operator_dense(V, F, interior=True):
+    device = V.device
+    dtype = V.dtype
+    
+    cached_dtn = load_cached_steklov_dtn(V, F, interior)
+
+    steklov_evals = cached_dtn["evals_int"].to(dtype=dtype, device=device)
+    steklov_evecs = cached_dtn["evecs_int"].to(dtype=dtype, device=device)
+    mass = cached_dtn["mass"].to(dtype=dtype, device=device)
+
+    steklov_evals[0] = 0  # for some reason I got negative first eigenvalue sometimes :(
+
+    dtn = (mass[:, None] * steklov_evecs * steklov_evals[None, :]) @ (
+        steklov_evecs.mT * mass[None, :]
+    )
+
+    return dtn
+
+
 def rots_from_verts_dense(V, Vp, L, eps=1e-7):
     # Dense analogue of rots_from_verts() for a dense Laplacian-like operator.
     device = V.device
@@ -170,6 +189,8 @@ class ARAPManagerSteklov:
         device="cuda",
         float_dtype=torch.float32,
         kind='robust',
+        interior=False,
+        alpha=0.1,
     ):
         del kind
 
@@ -192,12 +213,14 @@ class ARAPManagerSteklov:
             (self.V_rest.shape[0], 0), dtype=self.V_rest.dtype, device=self.device
         )
         self.solver = None
+        self.alpha = alpha
+        self.interior = interior
 
         self._update_operator()
         self._update_system_matrix()
 
     def _update_operator(self):
-        cached_dtn = load_cached_steklov_dtn(self.V_rest, self.F, interior=False)
+        cached_dtn = load_cached_steklov_dtn(self.V_rest, self.F, interior=self.interior)
 
         self.steklov_evals = cached_dtn["evals_int"].to(dtype=self.V_rest.dtype, device=self.device)
         self.steklov_evecs = cached_dtn["evecs_int"].to(dtype=self.V_rest.dtype, device=self.device)
@@ -220,8 +243,9 @@ class ARAPManagerSteklov:
             self.steklov_evecs.mT * self.mass[None, :]
         )
         laplacian = cotan_laplacian_robust(self.V_rest, self.F)
-        l = 0.1
-        self.L = (1-l)*laplacian.to_dense() + l*dtn
+
+        self.L = (1-self.alpha)*laplacian.to_dense() + self.alpha*dtn
+        # import ipdb; ipdb.set_trace()
 
         self.L_row_sum = self.L.sum(dim=1)
 

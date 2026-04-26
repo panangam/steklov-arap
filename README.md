@@ -6,3 +6,4 @@ Use mix of Laplacian and Steklov (DtN) operators to run ARAP that works for mult
 
 - `uv sync`
 - install `steklovnet` separately
+- install `torch_mesh_ops` separately

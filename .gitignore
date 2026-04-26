@@ -178,3 +178,5 @@ pyrightconfig.json
 .codex
 .polyscope.ini
 imgui.ini
+
+__marimo__

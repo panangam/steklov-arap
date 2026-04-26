@@ -70,6 +70,7 @@ def main() -> None:
     selected_locked_vertex: int | None = None  # only this locked vertex shows a gizmo
     first_frame: bool = True
     pause_arap: bool = True
+    freeze_on_unanchoring: bool = False
     arap_iterations: int = 1
 
     V, F = load_mesh(args.mesh_path)
@@ -163,7 +164,7 @@ def main() -> None:
 
     def user_callback() -> None:
         nonlocal locked_vertices, selected_locked_vertex, V, first_frame
-        nonlocal pause_arap, arap_iterations
+        nonlocal pause_arap, arap_iterations, freeze_on_unanchoring
         if first_frame:
             psim.SetWindowCollapsed("Polyscope", True)
             first_frame = False
@@ -174,6 +175,7 @@ def main() -> None:
         _, pause_arap = psim.Checkbox("Pause ARAP", pause_arap)
         _, arap_iterations = psim.InputInt("ARAP Iterations", arap_iterations, step=1, step_fast=10)
         arap_iterations = max(1, arap_iterations)
+        _, freeze_on_unanchoring = psim.Checkbox("Reset rest state on unanchoring", freeze_on_unanchoring)
         manual_iterate = psim.Button("Iterate ARAP")
         reset_mesh = psim.Button("Reset Mesh to Rest State")
 
@@ -234,7 +236,8 @@ def main() -> None:
                     if idx == selected_locked_vertex:
                         remove_selected_gizmo()
                         selected_locked_vertex = None
-                    arap.set_rest_state()
+                    if freeze_on_unanchoring:
+                        arap.set_rest_state()
                 else:
                     locked_vertices.add(idx)
                     remove_selected_gizmo()
