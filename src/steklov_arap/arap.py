@@ -2,6 +2,8 @@ import torch
 import igl
 import cholespy
 import robust_laplacian
+import scipy.sparse
+import scipy.sparse.linalg
 
 
 def load_mesh(path, device="cpu") -> tuple[torch.Tensor, torch.Tensor]:
@@ -121,7 +123,6 @@ def rots_from_verts(V, Vp, L, eps=1e-7):
     Ep = Vp[L_idxs[0]] - Vp[L_idxs[1]]
 
     # Weighted outer products w_ij * e_ij * e'_ij^T, shape [nnz, 3, 3]
-    # HACK: ensuring positive laplacian weights seems to ensure identity for rigid case
     E_EpT = E[:, :, None] * (L_vals[:, None, None]) * Ep[:, None, :]
 
     # Covariance matrix S_i = sum_j w_ij * e_ij * e'_ij^T, accumulated per vertex i
@@ -165,9 +166,27 @@ def create_constrained_solver(L, handle_idxs):
             cholespy.MatrixType.COO,
         )
     except ValueError as e:
-        print("Warning: Cholesky factorization failed, using sparse solver fallback.")
-        print(e)
-        solver = SolverHelper(L_constrained)
+        try:
+            n = L_constrained.shape[0]
+            eye_idx = torch.arange(n, device=L_constrained.device)
+            reg = torch.sparse_coo_tensor(
+                torch.stack([eye_idx, eye_idx]),
+                torch.full((n,), 1e-6, dtype=L_constrained.dtype, device=L_constrained.device),
+                L_constrained.shape,
+            )
+            L_constrained = (L_constrained + reg).coalesce()
+            print("Warning: Cholesky factorization failed, added diagonal regularization and retrying.")
+            solver = solver_class(
+                L_constrained.shape[0],
+                L_constrained.indices()[0],
+                L_constrained.indices()[1],
+                L_constrained.values(),
+                cholespy.MatrixType.COO,
+            )
+        except ValueError as e:
+            print("Warning: Cholesky factorization failed, using sparse solver fallback.")
+            print(e)
+            solver = SolverHelper(L_constrained)
     return solver
 
 
@@ -250,10 +269,19 @@ def remove_rows_cols(A: torch.Tensor, remove_idx: list[int]) -> torch.Tensor:
 
 class SolverHelper:
     def __init__(self, A):
-        self.A = A
+        A_cpu = A.detach().cpu().to_sparse_coo().coalesce()
+        indices = A_cpu.indices().numpy()
+        values = A_cpu.values().numpy()
+        A_scipy = scipy.sparse.coo_matrix(
+            (values, (indices[0], indices[1])), shape=A_cpu.shape
+        ).tocsc()
+        self.solve_A = scipy.sparse.linalg.splu(A_scipy).solve
 
     def solve(self, b, x_out):
-        x_out[:] = torch.linalg.solve(self.A, b)
+        b_cpu = b.detach().cpu()
+        x = self.solve_A(b_cpu.numpy())
+        x = torch.as_tensor(x, dtype=b_cpu.dtype)
+        x_out[:] = x.to(device=x_out.device, dtype=x_out.dtype)
 
 
 class ARAPManager:
@@ -284,7 +312,7 @@ class ARAPManager:
         self.solver = create_constrained_solver(L_eps, self.handle_idxs)
 
     def set_handle_constraints(self, handle_idxs, V_handle):
-        if handle_idxs != self.handle_idxs:
+        if handle_idxs != self.handle_idxs and len(handle_idxs) > 0:
             self.handle_idxs = handle_idxs
             self.solver = create_constrained_solver(self.L, handle_idxs)
         self.set_handle_positions(V_handle)
