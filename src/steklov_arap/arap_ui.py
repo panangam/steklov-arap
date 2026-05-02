@@ -63,6 +63,12 @@ def main() -> None:
         action="store_true",
         help="Use Steklov-DtN ARAP variant (slower to initialize, more robust to large deformations)",
     )
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        help="Steklov blend parameter (1=full Steklov, 0=standard ARAP)",
+        default=0.1,
+    )
     args = parser.parse_args()
 
     # UI state
@@ -81,7 +87,7 @@ def main() -> None:
     # arap state manager
     # arap = ARAPManager(V, F, device="cuda", float_dtype=torch.float32)
     if args.steklov:
-        arap = ARAPManagerSteklov(V, F, device="cuda", float_dtype=torch.float32)
+        arap = ARAPManagerSteklov(V, F, device="cuda", float_dtype=torch.float32, alpha=args.alpha)
     else:
         arap = ARAPManager(V, F, device="cuda", float_dtype=torch.float32)
 

@@ -8,7 +8,7 @@ import torch
 
 from steklovnet.geometry.mesh import Mesh
 
-from .arap import cotan_laplacian_robust
+from .arap import cotan_laplacian_robust, cotan_laplacian
 
 K = 128
 MAX_POINTS = 1 << 14
@@ -37,7 +37,7 @@ class DenseCholeskySolver:
         x_out[:] = torch.cholesky_solve(b, self.L)
 
 
-def load_cached_steklov_dtn(V, F, interior=True):
+def load_cached_steklov_dtn(V, F, interior=True, K=K):
     V_cpu = V.detach().contiguous().cpu()
     F_cpu = F.detach().contiguous().cpu()
 
@@ -47,6 +47,7 @@ def load_cached_steklov_dtn(V, F, interior=True):
         hasher.update(str(tuple(tensor.shape)).encode("utf-8"))
         hasher.update(tensor.numpy().tobytes())
         hasher.update(interior.to_bytes(1))
+    hasher.update(f"K={K}".encode("utf-8"))
 
     cache_path = Path(tempfile.gettempdir()) / f"steklov_dtn_{hasher.hexdigest()}.pt"
     expected_keys = {"evals_int", "evecs_int", "S_int", "mass"}
@@ -63,7 +64,7 @@ def load_cached_steklov_dtn(V, F, interior=True):
     mode_count = min(K, V.shape[0] - 1)
     evals_int, evecs_int, S_int, basis_int, _ = mesh.steklov_eigenmodes_mesh(
         interior=interior,
-        galerkin_basis='laplacian',
+        galerkin_basis='robust_laplacian',
         K=mode_count,
         angular_clamp=ANGULAR_CLAMP,
         total_samples=TOTAL_SAMPLES,
@@ -94,6 +95,8 @@ def load_cached_dtn_operator_dense(V, F, interior=True):
     steklov_evals = cached_dtn["evals_int"].to(dtype=dtype, device=device)
     steklov_evecs = cached_dtn["evecs_int"].to(dtype=dtype, device=device)
     mass = cached_dtn["mass"].to(dtype=dtype, device=device)
+
+    mass = torch.pow(mass, 2/3)
 
     steklov_evals[0] = 0  # for some reason I got negative first eigenvalue sometimes :(
 
@@ -239,7 +242,7 @@ class ARAPManagerSteklov:
         # self.L.fill_diagonal_(0)
         # self.L.diagonal().copy_(-self.L.sum(dim=0))
 
-        dtn = (self.mass[:, None] * self.steklov_evecs * self.steklov_evals[None, :]) @ (
+        dtn = (self.mass[:, None] * self.steklov_evecs * self.steklov_evals[None, :] * self.steklov_evals[None, :]) @ (
             self.steklov_evecs.mT * self.mass[None, :]
         )
         laplacian = cotan_laplacian_robust(self.V_rest, self.F)
