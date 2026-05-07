@@ -17,6 +17,7 @@ dependencies = [
     "matplotlib>=3.10.8",
     "numpy>=2.4.3",
     "polyscope>=2.6.1",
+    "pyglet<2",
     "robust-laplacian>=1.0.0",
     "scipy>=1.17.1",
     "steklovnet",

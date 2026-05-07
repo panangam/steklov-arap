@@ -1999,6 +1999,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyglet"
+version = "1.5.31"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f7/c0/59130a7edbcc8f84e35870b00a712538ca05415ff02d17181277b8ef8f05/pyglet-1.5.31.zip", hash = "sha256:a5e422b4c27b0fc99e92103bf493109cca5c18143583b868b3b4631a98ae9417", size = 6900712, upload-time = "2024-12-24T07:10:58.022Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e2/43/46aa0ab49f2f5145d201780c7595cf0c305fb4fb5d00d6639792a3d0e770/pyglet-1.5.31-py3-none-any.whl", hash = "sha256:f68413564bbec380e4815898fef0fb7a4a494dc3f8718bfbf28ce2a802634c88", size = 1143660, upload-time = "2024-12-24T07:10:50.769Z" },
+]
+
+[[package]]
 name = "pygments"
 version = "2.20.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2503,6 +2512,7 @@ dependencies = [
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "polyscope" },
+    { name = "pyglet" },
     { name = "robust-laplacian" },
     { name = "scipy" },
     { name = "steklovnet" },
@@ -2525,6 +2535,7 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "numpy", specifier = ">=2.4.3" },
     { name = "polyscope", specifier = ">=2.6.1" },
+    { name = "pyglet", specifier = "<2" },
     { name = "robust-laplacian", specifier = ">=1.0.0" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "steklovnet", git = "https://github.com/starboi-63/steklovnet.git?rev=installable" },

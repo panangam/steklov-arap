@@ -8,9 +8,9 @@ import torch
 
 from steklovnet.geometry.mesh import Mesh
 
-from .arap import cotan_laplacian_robust, cotan_laplacian
+from .arap import cotan_laplacian_robust, cotan_laplacian_abs
 
-K = 128
+K = 386
 MAX_POINTS = 1 << 14
 BLUE_NOISE_RADIUS = 0.01
 TOTAL_SAMPLES = 10_000_000
@@ -35,6 +35,13 @@ class DenseCholeskySolver:
             x_out[:] = torch.cholesky_solve(b[:, None], self.L).squeeze(-1)
             return
         x_out[:] = torch.cholesky_solve(b, self.L)
+
+
+def absify_diagonal_(M):
+    M.abs_().negative_()
+    M.fill_diagonal_(0)
+    M.diagonal().copy_(-M.sum(dim=1))
+    return M
 
 
 def load_cached_steklov_dtn(V, F, interior=True, K=K):
@@ -242,12 +249,15 @@ class ARAPManagerSteklov:
         # self.L.fill_diagonal_(0)
         # self.L.diagonal().copy_(-self.L.sum(dim=0))
 
-        dtn = (self.mass[:, None] * self.steklov_evecs * self.steklov_evals[None, :] * self.steklov_evals[None, :]) @ (
+        bisteklov = (self.mass[:, None] * self.steklov_evecs * torch.pow(self.steklov_evals[None, :], 2)) @ (
             self.steklov_evecs.mT * self.mass[None, :]
         )
+        # turn into M-matrix
+        # absify_diagonal_(dtn)
+
         laplacian = cotan_laplacian_robust(self.V_rest, self.F)
 
-        self.L = (1-self.alpha)*laplacian.to_dense() + self.alpha*dtn
+        self.L = (1-self.alpha)*laplacian.to_dense() + self.alpha*bisteklov
         # import ipdb; ipdb.set_trace()
 
         self.L_row_sum = self.L.sum(dim=1)

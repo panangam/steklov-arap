@@ -8,6 +8,7 @@ from steklov_arap import (
     verts_from_rots,
     remove_rows_cols,
     create_constrained_solver,
+    SolverHelper,
 )
 
 
@@ -74,6 +75,19 @@ def test_remove_rows_cols(mesh):
         f"Reduced matrix entries don't match dense reference, max deviation: "
         f"{(L_reduced.to_dense() - L_expected).abs().max().item()}"
     )
+
+
+def test_solver_helper_sparse_cpu_fallback():
+    """The fallback sparse solver should work on CPU without torch.sparse.spsolve."""
+    indices = torch.tensor([[0, 0, 1, 1], [0, 1, 0, 1]], dtype=torch.long)
+    values = torch.tensor([4.0, 1.0, 1.0, 3.0])
+    A = torch.sparse_coo_tensor(indices, values, (2, 2)).coalesce()
+    b = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
+    x = torch.empty_like(b)
+
+    SolverHelper(A).solve(b, x)
+
+    assert torch.allclose(A.to_dense() @ x, b, atol=1e-6)
 
 
 def test_cotan_laplacian_robust_returns_sparse_coo(mesh):
