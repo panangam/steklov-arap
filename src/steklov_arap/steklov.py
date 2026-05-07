@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-import tempfile
+import os
 from pathlib import Path
 
 import torch
@@ -24,6 +24,8 @@ KNN_SIGMA = 0.025
 SEED = 6336
 THREADS = 128
 GWN_EPS = 1e-5
+STEKLOV_CACHE_ENV_VAR = "STEKLOV_ARAP_CACHE_DIR"
+STEKLOV_CACHE_DIR = Path.home() / ".cache" / "steklov_arap"
 
 
 class DenseCholeskySolver:
@@ -44,6 +46,14 @@ def absify_diagonal_(M):
     return M
 
 
+def steklov_cache_dir():
+    cache_dir = Path(
+        os.environ.get(STEKLOV_CACHE_ENV_VAR, STEKLOV_CACHE_DIR)
+    ).expanduser()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
+
+
 def load_cached_steklov_dtn(V, F, interior=True, K=K):
     V_cpu = V.detach().contiguous().cpu()
     F_cpu = F.detach().contiguous().cpu()
@@ -56,7 +66,7 @@ def load_cached_steklov_dtn(V, F, interior=True, K=K):
         hasher.update(interior.to_bytes(1))
     hasher.update(f"K={K}".encode("utf-8"))
 
-    cache_path = Path(tempfile.gettempdir()) / f"steklov_dtn_{hasher.hexdigest()}.pt"
+    cache_path = steklov_cache_dir() / f"steklov_dtn_{hasher.hexdigest()}.pt"
     expected_keys = {"evals_int", "evecs_int", "S_int", "mass"}
 
     if cache_path.exists():
