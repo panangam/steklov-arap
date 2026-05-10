@@ -1,0 +1,1 @@
+Python packages are managed by uv at .venv, so use uv to run all python-related commands. 

@@ -5,6 +5,7 @@ left-click to select a locked vertex (shows gizmo). Points are moved only via th
 gizmo. Uses Polyscope for display and vertex selection; ImGui for input.
 """
 import argparse
+from pathlib import Path
 import sys
 import numpy as np
 import polyscope as ps
@@ -14,6 +15,7 @@ import torch
 
 from .arap import ARAPManager
 from .steklov import ARAPManagerSteklov
+from .steklov_fake import ARAPManagerSteklov as ARAPManagerSteklovFake
 
 
 MESH_NAME = "mesh"
@@ -69,6 +71,11 @@ def main() -> None:
         help="Steklov blend parameter (1=full Steklov, 0=standard ARAP)",
         default=0.1,
     )
+    parser.add_argument(
+        "--fake",
+        action="store_true",
+        help="Use L2 distance between vertices as fake DtN",
+    )
     args = parser.parse_args()
 
     # UI state
@@ -78,16 +85,21 @@ def main() -> None:
     pause_arap: bool = True
     freeze_on_unanchoring: bool = False
     arap_iterations: int = 1
+    alpha_value: float = float(args.alpha)
 
     V, F = load_mesh(args.mesh_path)
     V = np.asarray(V, dtype=np.float64)
     F = np.asarray(F, dtype=np.int32)
     n_vertices = V.shape[0]
+    mesh_filename = Path(args.mesh_path).name
 
     # arap state manager
     # arap = ARAPManager(V, F, device="cuda", float_dtype=torch.float32)
     if args.steklov:
-        arap = ARAPManagerSteklov(V, F, device="cuda", float_dtype=torch.float32, alpha=args.alpha)
+        if not args.fake:
+            arap = ARAPManagerSteklov(V, F, device="cuda", float_dtype=torch.float32, alpha=args.alpha)
+        else:
+            arap = ARAPManagerSteklovFake(V, F, device="cuda", float_dtype=torch.float32, alpha=args.alpha)
     else:
         arap = ARAPManager(V, F, device="cuda", float_dtype=torch.float32)
 
@@ -170,7 +182,7 @@ def main() -> None:
 
     def user_callback() -> None:
         nonlocal locked_vertices, selected_locked_vertex, V, first_frame
-        nonlocal pause_arap, arap_iterations, freeze_on_unanchoring
+        nonlocal pause_arap, arap_iterations, freeze_on_unanchoring, alpha_value
         if first_frame:
             psim.SetWindowCollapsed("Polyscope", True)
             first_frame = False
@@ -178,10 +190,29 @@ def main() -> None:
         mouse_pos = (float(io.MousePos[0]), float(io.MousePos[1]))
         ui_capturing_mouse = getattr(io, "WantCaptureMouse", False)
 
+        psim.Text(f"Mesh: {mesh_filename}")
+        if not args.steklov:
+            psim.BeginDisabled()
+        psim.PushItemWidth(80)
+        alpha_changed, next_alpha = psim.InputFloat("Alpha", alpha_value)
+        psim.PopItemWidth()
+        if not args.steklov:
+            psim.EndDisabled()
+        if args.steklov and alpha_changed:
+            alpha_value = float(next_alpha)
+            arap.set_alpha(alpha_value)
+
         _, pause_arap = psim.Checkbox("Pause ARAP", pause_arap)
+        psim.PushItemWidth(160)
         _, arap_iterations = psim.InputInt("ARAP Iterations", arap_iterations, step=1, step_fast=10)
+        psim.PopItemWidth()
         arap_iterations = max(1, arap_iterations)
         _, freeze_on_unanchoring = psim.Checkbox("Reset rest state on unanchoring", freeze_on_unanchoring)
+        
+        psim.BeginDisabled()
+        _ = psim.Checkbox("Fake DtN (L2 distance)", args.fake)
+        psim.EndDisabled()
+        
         manual_iterate = psim.Button("Iterate ARAP")
         reset_mesh = psim.Button("Reset Mesh to Rest State")
 

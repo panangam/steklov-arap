@@ -261,22 +261,32 @@ class ARAPManagerSteklov:
         # self.L.fill_diagonal_(0)
         # self.L.diagonal().copy_(-self.L.sum(dim=0))
 
-        self.bisteklov_cpu = (self.mass[:, None] * self.steklov_evecs * torch.pow(self.steklov_evals[None, :], 2)) @ (
-            self.steklov_evecs.mT * self.mass[None, :]
-        )
-        # turn into M-matrix
-        # absify_diagonal_(dtn)
+        # bisteklov = (self.mass[:, None] * self.steklov_evecs * torch.pow(self.steklov_evals[None, :], 2)) @ (
+        #     self.steklov_evecs.mT * self.mass[None, :]
+        # )
 
         V_rest_cpu = self.V_rest.detach().cpu()
         F_cpu = self.F.detach().cpu()
+
+        self.bisteklov_cpu = (
+            self.mass[:, None] 
+            * torch.linalg.norm(
+                V_rest_cpu[:, None, :] - V_rest_cpu[None, :, :],
+                dim=-1,
+            )
+            * self.mass[None, :]
+        )
+        absify_diagonal_(self.bisteklov_cpu)
+
+        # turn into M-matrix
+        # absify_diagonal_(dtn)
+
         self.laplacian_cpu = cotan_laplacian_robust(V_rest_cpu, F_cpu).to_dense()
 
         self._update_blended_operator()
 
     def _update_blended_operator(self):
         blended_cpu = (1 - self.alpha) * self.laplacian_cpu + self.alpha * self.bisteklov_cpu
-        # HACK: exclude sacrificial vertices
-        blended_cpu = blended_cpu[:-8, :-8]
         self.L = blended_cpu.to(dtype=self.V_rest.dtype, device=self.device)
         self.L_row_sum = self.L.sum(dim=1)
 

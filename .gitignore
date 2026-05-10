@@ -180,3 +180,4 @@ pyrightconfig.json
 imgui.ini
 
 __marimo__
+scripts/output/
